@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<AssetBundleConfig xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <AssetBundleList Path="Assets/GameData/Data/ABData/AssetBundleConfig.bytes" Crc="1702186459" AssetBundleName="assetbundleconfig" AssetName="AssetBundleConfig.bytes" />
+  <AssetBundleList Path="Assets/GameData/Prefabs/Attack.prefab" Crc="2633322094" AssetBundleName="attack" AssetName="Attack.prefab">
+    <AssetBundleDependce>sounds</AssetBundleDependce>
+    <AssetBundleDependce>shader</AssetBundleDependce>
+  </AssetBundleList>
+  <AssetBundleList Path="Assets/GameData/Shaders/Skybox.shader" Crc="2751631037" AssetBundleName="shader" AssetName="Skybox.shader" />
+  <AssetBundleList Path="Assets/GameData/Shaders/Water.shader" Crc="2231763863" AssetBundleName="shader" AssetName="Water.shader" />
+  <AssetBundleList Path="Assets/GameData/Shaders/Xray.shader" Crc="4232325822" AssetBundleName="shader" AssetName="Xray.shader" />
+  <AssetBundleList Path="Assets/GameData/Sounds/menusound.mp3" Crc="606070255" AssetBundleName="sounds" AssetName="menusound.mp3" />
+  <AssetBundleList Path="Assets/GameData/Sounds/senlin.mp3" Crc="1103248306" AssetBundleName="sounds" AssetName="senlin.mp3" />
+</AssetBundleConfig>
