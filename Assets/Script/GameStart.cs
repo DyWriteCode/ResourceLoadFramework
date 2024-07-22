@@ -13,7 +13,7 @@ public class GameStart : MonoBehaviour
 
     private void Start()
     {
-        ResourceManager.Instance.AsyncLoadResource("Assets/GameData/Sounds/senlin.mp3", OnFinish, LoadResPriority.RES_MIDDLE);
+        ResourceManager.Instance.AsyncLoadResource("Assets/GameData/Sounds/menusound.mp3", OnFinish, LoadResPriority.RES_MIDDLE);
     }
 
     public void OnFinish(string path, Object obj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null)
