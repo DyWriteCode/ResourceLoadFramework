@@ -30,6 +30,7 @@ public class GameStart : MonoBehaviour
         {
             m_Audio.Stop();
             ResourceManager.Instance.ReleaseResouce(clip, true);
+            clip = null;
         }
     }
 }

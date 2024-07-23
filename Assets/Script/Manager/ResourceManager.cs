@@ -481,6 +481,9 @@ public class ResourceManager : Singleton<ResourceManager>
         if (item.m_Obj != null)
         {
             item.m_Obj = null;
+#if UNITY_EDITOR
+            Resources.UnloadUnusedAssets();
+#endif
         }
     }
 
