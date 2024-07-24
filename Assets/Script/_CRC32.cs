@@ -1,5 +1,8 @@
 using System;
 
+/// <summary>
+/// C2C32算法类
+/// </summary>
 public static class _CRC32
 {
     static UInt32[] crcTable =
@@ -38,17 +41,20 @@ public static class _CRC32
           0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668, 0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
         };
 
-    public static uint GetCRC32(string msg)
+    /// <summary>
+    /// 根据文件路径获取其对应的CRC
+    /// </summary>
+    /// <param name="path">文件路径</param>
+    /// <returns>文件路径对应的CRC</returns>
+    public static uint GetCRC32(string path)
     {
-        byte[] bytes = System.Text.UTF8Encoding.UTF8.GetBytes(msg);
+        byte[] bytes = System.Text.UTF8Encoding.UTF8.GetBytes(path);
         uint iCount = (uint)bytes.Length;
         uint crc = 0xFFFFFFFF;
-
         for (uint i = 0; i < iCount; i++)
         {
             crc = ((crc >> 8) & 0x00FFFFFF) ^ crcTable[(crc ^ bytes[i]) & 0xFF];
         }
-
         return crc;
     }
 }

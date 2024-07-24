@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 
 /// <summary>
@@ -378,7 +378,7 @@ public class ResourceManager : Singleton<ResourceManager>
         ResourceItem item = GetCacheResourceItem(crc);
         if (item != null)
         {
-            return item.m_Obj as T;
+            return item.m_Object as T;
         }
         T obj = null;
 #if UNITY_EDITOR 
@@ -387,9 +387,9 @@ public class ResourceManager : Singleton<ResourceManager>
             obj = LoadAssetByEditor<T>(path);
             if (item != null)
             {
-                if (item.m_Obj != null)
+                if (item.m_Object != null)
                 {
-                    obj = item.m_Obj as T;
+                    obj = item.m_Object as T;
 
                 }
             }
@@ -404,9 +404,9 @@ public class ResourceManager : Singleton<ResourceManager>
             item = AssetBundleManager.Instance.LoadResouceAssetBundle(crc);
             if (item != null && item.m_AssetBundle != null)
             {
-                if (item.m_Obj != null)
+                if (item.m_Object != null)
                 {
-                    obj = item.m_Obj as T;
+                    obj = item.m_Object as T;
                 }
                 else
                 {
@@ -478,9 +478,9 @@ public class ResourceManager : Singleton<ResourceManager>
         }
         // 释放asset bundle
         AssetBundleManager.Instance.ReleaseAssetBundle(item);
-        if (item.m_Obj != null)
+        if (item.m_Object != null)
         {
-            item.m_Obj = null;
+            item.m_Object = null;
 #if UNITY_EDITOR
             Resources.UnloadUnusedAssets();
 #endif
@@ -500,7 +500,7 @@ public class ResourceManager : Singleton<ResourceManager>
         {
             Debug.LogError($"ResourceLoad Fail, Path: {path}");
         }
-        item.m_Obj = obj;
+        item.m_Object = obj;
         item.m_crc = crc;
         item.m_Guid = obj.GetInstanceID();
         item.m_LastUseTime = Time.realtimeSinceStartup;
@@ -517,7 +517,12 @@ public class ResourceManager : Singleton<ResourceManager>
 
     }
 
-    // 释放/卸载资源(不用实例化的资源)
+    /// <summary>
+    /// 释放/卸载资源(不用实例化的资源)
+    /// </summary>
+    /// <param name="obj">要卸载资源的对象</param>
+    /// <param name="destroyCache">是否删除缓存</param>
+    /// <returns>是否卸载成功</returns>
     public bool ReleaseResouce(Object obj, bool destroyCache = false)
     {
         if (obj == null)
@@ -534,6 +539,30 @@ public class ResourceManager : Singleton<ResourceManager>
         }
         if (item == null)
         {
+            return false;
+        }
+        item.RefCount--;
+        DestoryResouceItme(item);
+        return true;
+    }
+
+    /// <summary>
+    /// 释放/卸载资源(不用实例化的资源)
+    /// </summary>
+    /// <param name="path">要卸载资源的对象路径</param>
+    /// <param name="destroyCache">是否删除缓存</param>
+    /// <returns>是否卸载成功</returns>
+    public bool ReleaseResouce(string path, bool destroyCache = false)
+    {
+        if (string.IsNullOrEmpty(path) == true)
+        {
+            return false;
+        }
+        uint crc = _CRC32.GetCRC32(path);
+        ResourceItem item = null;
+        if (AssetDic.TryGetValue(crc, out item) || item == null)
+        {
+            Debug.Log($"不存在该资源或此资源被释放多次 : {path}");
             return false;
         }
         item.RefCount--;
@@ -637,7 +666,7 @@ public class ResourceManager : Singleton<ResourceManager>
         {
             if (dealFinish != null)
             {
-                dealFinish(path, item.m_Obj, param1, param2, param3, param4, param5);
+                dealFinish(path, item.m_Object, param1, param2, param3, param4, param5);
             }
             return;
         }
@@ -661,5 +690,75 @@ public class ResourceManager : Singleton<ResourceManager>
         callack.param4 = param4;
         callack.param5 = param5;
         param.m_CallbackList.Add(callack);
+    }
+
+    /// <summary>
+    /// 清除缓存
+    /// </summary>
+    public void ClearCache()
+    {
+        while (m_NoRefrenceAssetMapList.Size() > 0)
+        {
+            ResourceItem item = m_NoRefrenceAssetMapList.Back();
+            // DestoryResouceItme(item, item.m_Clear);
+            DestoryResouceItme(item, true);
+            m_NoRefrenceAssetMapList.Pop();
+        }
+    }
+
+    /// <summary>
+    /// 预加载资源
+    /// 本质上是事先加载了在卸载但不删除
+    /// </summary>
+    public void PreloadRes(string path)
+    {
+        if (string.IsNullOrEmpty(path) == true)
+        {
+            return;
+        }
+        uint crc = _CRC32.GetCRC32(path);
+        ResourceItem item = GetCacheResourceItem(crc, 0);
+        if (item != null)
+        {
+            return;
+        }
+        Object obj = null;
+#if UNITY_EDITOR 
+        if (m_LoadFromAssetBundle == false)
+        {
+            obj = LoadAssetByEditor<Object>(path);
+            if (item != null)
+            {
+                if (item.m_Object != null)
+                {
+                    obj = item.m_Object as Object;
+
+                }
+            }
+            else
+            {
+                item = AssetBundleManager.Instance.FindResourceItem(crc);
+            }
+        }
+#endif
+        if (obj == null)
+        {
+            item = AssetBundleManager.Instance.LoadResouceAssetBundle(crc);
+            if (item != null && item.m_AssetBundle != null)
+            {
+                if (item.m_Object != null)
+                {
+                    obj = item.m_Object as Object;
+                }
+                else
+                {
+                    obj = item.m_AssetBundle.LoadAsset<Object>(item.m_AssetName);
+                }
+            }
+        }
+        CacheResourceItem(path, ref item, crc, obj);
+        // 转换场景不清空缓存
+        item.m_Clear = false;
+        ReleaseResouce(path, false);
     }
 }

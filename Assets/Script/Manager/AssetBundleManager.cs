@@ -22,11 +22,13 @@ public class ResourceItem
     public AssetBundle m_AssetBundle = null;
     // --------------------------------------------
     // 资源对象
-    public Object m_Obj = null;
+    public Object m_Object = null;
     // 资源唯一标识符
     public int m_Guid = 0;
     // 资源最后使用的时间
     public float m_LastUseTime = 0.0f;
+    // 是否需要清除
+    public bool m_Clear = true;
     // 引用计数
     private int m_RefCount = 0;
     public int RefCount
