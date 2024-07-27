@@ -13,7 +13,8 @@ public class GameStart : MonoBehaviour
 
     private void Start()
     {
-        ResourceManager.Instance.AsyncLoadResource("Assets/GameData/Sounds/menusound.mp3", OnFinish, LoadResPriority.RES_MIDDLE);
+        //ResourceManager.Instance.AsyncLoadResource("Assets/GameData/Sounds/menusound.mp3", OnFinish, LoadResPriority.RES_MIDDLE);
+        ResourceManager.Instance.PreloadResource("Assets/GameData/Sounds/menusound.mp3");
     }
 
     public void OnFinish(string path, Object obj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null)
@@ -28,7 +29,18 @@ public class GameStart : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.A))
         {
+            //m_Audio.Stop();
+            //ResourceManager.Instance.ClearCache();
+            //ResourceManager.Instance.ReleaseResouce(clip, true);
+            //clip = null;
+            clip = ResourceManager.Instance.LoadResource<AudioClip>("Assets/GameData/Sounds/menusound.mp3");
+            m_Audio.clip = clip;
+            m_Audio.Play();
+        }
+        if (Input.GetKeyDown(KeyCode.D))
+        {
             m_Audio.Stop();
+            ResourceManager.Instance.ClearCache();
             ResourceManager.Instance.ReleaseResouce(clip, true);
             clip = null;
         }

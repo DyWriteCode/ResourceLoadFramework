@@ -468,12 +468,13 @@ public class ResourceManager : Singleton<ResourceManager>
         {
             return;
         }
-        if (destroyCache == false)
-        {
-            m_NoRefrenceAssetMapList.InsertToHead(item);
-        }
         if (AssetDic.Remove(item.m_crc) == false)
         {
+            return;
+        }
+        if (destroyCache == false)
+        {
+            // m_NoRefrenceAssetMapList.InsertToHead(item);
             return;
         }
         // 释放asset bundle
@@ -560,7 +561,14 @@ public class ResourceManager : Singleton<ResourceManager>
         }
         uint crc = _CRC32.GetCRC32(path);
         ResourceItem item = null;
-        if (AssetDic.TryGetValue(crc, out item) || item == null)
+        // start
+        //foreach (var items in AssetDic)
+        //{
+        //    Debug.Log(items.Key);
+        //    Debug.Log(crc);
+        //}
+        // end
+        if (AssetDic.TryGetValue(crc, out item) == false || item == null)
         {
             Debug.Log($"不存在该资源或此资源被释放多次 : {path}");
             return false;
@@ -697,20 +705,33 @@ public class ResourceManager : Singleton<ResourceManager>
     /// </summary>
     public void ClearCache()
     {
-        while (m_NoRefrenceAssetMapList.Size() > 0)
+        //while (m_NoRefrenceAssetMapList.Size() > 0)
+        //{
+        //    ResourceItem item = m_NoRefrenceAssetMapList.Back();
+        //    // DestoryResouceItme(item, item.m_Clear);
+        //    DestoryResouceItme(item, true);
+        //    m_NoRefrenceAssetMapList.Pop();
+        //}
+        List<ResourceItem> tempList = new List<ResourceItem>();
+        foreach (var item in AssetDic.Values)
         {
-            ResourceItem item = m_NoRefrenceAssetMapList.Back();
-            // DestoryResouceItme(item, item.m_Clear);
-            DestoryResouceItme(item, true);
-            m_NoRefrenceAssetMapList.Pop();
+            if (item.m_Clear == true)
+            {
+                tempList.Add(item);
+            }
         }
+        foreach (var item in tempList)
+        {
+            DestoryResouceItme(item, item.m_Clear);
+        }
+        tempList.Clear();
     }
 
     /// <summary>
     /// 预加载资源
     /// 本质上是事先加载了在卸载但不删除
     /// </summary>
-    public void PreloadRes(string path)
+    public void PreloadResource(string path)
     {
         if (string.IsNullOrEmpty(path) == true)
         {
