@@ -17,12 +17,12 @@ public class GameStart : MonoBehaviour
         ResourceManager.Instance.PreloadResource("Assets/GameData/Sounds/menusound.mp3");
     }
 
-    public void OnFinish(string path, Object obj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null)
-    {
-        clip = obj as AudioClip;
-        m_Audio.clip = clip;
-        m_Audio.Play();
-    }
+    //public void OnFinish(string path, Object obj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null)
+    //{
+    //    clip = obj as AudioClip;
+    //    m_Audio.clip = clip;
+    //    m_Audio.Play();
+    //}
 
 
     private void Update()
