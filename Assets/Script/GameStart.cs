@@ -9,12 +9,14 @@ public class GameStart : MonoBehaviour
     {
         AssetBundleManager.Instance.LoadAssetBundleConfig();
         ResourceManager.Instance.Init(this);
+        ObjectManager.Instance.Init(transform.Find("RecyclePoolTrs"), transform.Find("SceneTrs"));
     }
 
     private void Start()
     {
         //ResourceManager.Instance.AsyncLoadResource("Assets/GameData/Sounds/menusound.mp3", OnFinish, LoadResPriority.RES_MIDDLE);
         ResourceManager.Instance.PreloadResource("Assets/GameData/Sounds/menusound.mp3");
+        ObjectManager.Instance.InstantiateObject("Assets/GameData/Prefabs/Attack.prefab", true);
     }
 
     //public void OnFinish(string path, Object obj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null)
