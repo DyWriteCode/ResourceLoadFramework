@@ -13,6 +13,8 @@ public class ObjectManager : Singleton<ObjectManager>
     // 场景节点
     public Transform SceneTrs;
     protected Dictionary<Type, object> m_ClassPoolDic;
+    // 暂时存ResObj字典
+    protected Dictionary<int, ResourceObj> m_ResourceObjDic = new Dictionary<int, ResourceObj>();
     // 对象池
     protected Dictionary<uint, List<ResourceObj>> m_ObjectPoolDic = new Dictionary<uint, List<ResourceObj>>();
     // ResourceObj对象池
@@ -91,7 +93,81 @@ public class ObjectManager : Singleton<ObjectManager>
         {
             resourceObj.m_cloneObj.transform.SetParent(SceneTrs, false);
         }
+        int tempId = resourceObj.m_cloneObj.GetInstanceID();
+        if (m_ResourceObjDic.ContainsKey(tempId) == false)
+        {
+            m_ResourceObjDic.Add(tempId, resourceObj);
+        }
         return resourceObj.m_cloneObj;
+    }
+
+    // 释放对象
+    public void ReleaseObject(GameObject obj, int maxCacheCount = -1, bool destoryCache = false, bool recycleParent = true)
+    {
+        if (obj == null)
+        {
+            return;
+        }
+        ResourceObj resObj = null;
+        int tempId = obj.GetInstanceID();
+        if (m_ResourceObjDic.TryGetValue(tempId, out resObj) == false)
+        {
+            Debug.LogError($"{obj.name}is not created from object manager");
+            return;
+        }
+        if (resObj == null)
+        {
+            Debug.LogError("the cache res obj is null");
+            return;
+        }
+        if (resObj.m_Already == true)
+        {
+            Debug.LogError("this obj cached");
+            return;
+        }
+#if UNITY_EDITOR
+        obj.name += "(Recycle)";
+#endif
+        List<ResourceObj> temp = null;
+        if (maxCacheCount == 0)
+        {
+            m_ResourceObjDic.Remove(tempId);
+            ResourceManager.Instance.ReleaseResouce(resObj, destoryCache);
+            resObj.ReSet();
+            m_ResourceObjClassPool.Recycle(resObj);
+        }
+        else
+        {
+            if (m_ObjectPoolDic.TryGetValue(resObj.m_crc, out temp) == false || temp == null)
+            {
+                temp = new List<ResourceObj>();
+                m_ObjectPoolDic.Add(resObj.m_crc, temp);
+            }
+            if (resObj.m_cloneObj != null)
+            {
+                if (recycleParent == true)
+                {
+                    resObj.m_cloneObj.transform.SetParent(RecyclePoolTrs);
+                }
+                else
+                {
+                    resObj.m_cloneObj.SetActive(false);
+                }
+            }
+            if (maxCacheCount <0 || temp.Count < maxCacheCount)
+            {
+                temp.Add(resObj);
+                resObj.m_Already = true;
+                ResourceManager.Instance.DecreaseResouceRef(resObj);
+            }
+            else
+            {
+                m_ResourceObjDic.Remove(tempId);
+                ResourceManager.Instance.ReleaseResouce(resObj, destoryCache);
+                resObj.ReSet();
+                m_ResourceObjClassPool.Recycle(resObj);
+            }
+        }
     }
 
     // 从对象拾取一个对象通过CRC
@@ -100,11 +176,13 @@ public class ObjectManager : Singleton<ObjectManager>
         List<ResourceObj> st = null;
         if (m_ObjectPoolDic.TryGetValue(crc, out st) == true && st != null && st.Count > 0)
         {
+            ResourceManager.Instance.IncreaseResouceRef(crc);
             ResourceObj resourceObj = st[0];
             st.RemoveAt(0);
             GameObject obj = resourceObj.m_cloneObj;
             if (ReferenceEquals(obj, null) == false)
             {
+                resourceObj.m_Already = false;
 #if UNITY_EDITOR
                 if (obj.name.EndsWith("(Recycle)") == true)
                 {

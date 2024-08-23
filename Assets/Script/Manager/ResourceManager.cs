@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -346,6 +347,8 @@ public class ResourceObj
     public bool m_bClear = true;
     // 存储GUID
     public long m_Guid = 0;
+    // 是否已经放回对象池
+    public bool m_Already = false;
 
     // 重置
     public void ReSet()
@@ -355,6 +358,7 @@ public class ResourceObj
         m_cloneObj = null;
         m_bClear = true;
         m_Guid = 0;
+        m_Already = false;
     }
 }
 
@@ -615,6 +619,25 @@ public class ResourceManager : Singleton<ResourceManager>
 
     }
 
+    // 卸载资源
+    public bool ReleaseResouce(ResourceObj resObj, bool destroyCache = false)
+    {
+        if (resObj == null)
+        {
+            return false;
+        }
+        ResourceItem item = null;
+        if (AssetDic.TryGetValue(resObj.m_crc, out item) == false || item == null)
+        {
+            Debug.Log($"The resource does not exist or has been released multiple times : {resObj.m_cloneObj.name}");
+            return false;
+        }
+        GameObject.Destroy(resObj.m_cloneObj);
+        item.RefCount--;
+        DestoryResouceItme(item);
+        return true;
+    }
+
     /// <summary>
     /// 释放/卸载资源(不用实例化的资源)
     /// </summary>
@@ -667,7 +690,7 @@ public class ResourceManager : Singleton<ResourceManager>
         // end
         if (AssetDic.TryGetValue(crc, out item) == false || item == null)
         {
-            Debug.Log($"不存在该资源或此资源被释放多次 : {path}");
+            Debug.Log($"The resource does not exist or has been released multiple times : {path}");
             return false;
         }
         item.RefCount--;
@@ -878,5 +901,51 @@ public class ResourceManager : Singleton<ResourceManager>
         // 转换场景不清空缓存
         item.m_Clear = false;
         ReleaseResouce(path, false);
+    }
+
+    // 增加res obj引用计数
+    public int IncreaseResouceRef(ResourceObj resObj, int count = 1)
+    {
+        if (resObj != null)
+        {
+            return IncreaseResouceRef(resObj.m_crc, count);
+        }
+        return 0;
+    }
+
+    // 增加res obj引用计数
+    public int IncreaseResouceRef(uint crc, int count = 1)
+    {
+        ResourceItem item = null;
+        if (AssetDic.TryGetValue(crc, out item) == false || item == null)
+        {
+            return 0;
+        }
+        item.RefCount += count;
+        item.m_LastUseTime = Time.realtimeSinceStartup;
+        return item.RefCount;
+    }
+
+    // 减少res obj引用计数
+    public int DecreaseResouceRef(ResourceObj resObj, int count = 1)
+    {
+        if (resObj != null)
+        {
+            return DecreaseResouceRef(resObj.m_crc, count);
+        }
+        return 0;
+    }
+
+    // 减少res obj引用计数
+    public int DecreaseResouceRef(uint crc, int count = 1)
+    {
+        ResourceItem item = null;
+        if (AssetDic.TryGetValue(crc, out item) == false || item == null)
+        {
+            return 0;
+        }
+        item.RefCount -= count;
+        item.m_LastUseTime = Time.realtimeSinceStartup;
+        return item.RefCount;
     }
 }
