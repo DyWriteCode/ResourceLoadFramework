@@ -288,7 +288,7 @@ public enum LoadResPriority
 /// </summary>
 public class AsyncLoadResParam
 {
-    public List<AsyncCallack> m_CallbackList = new List<AsyncCallack>();
+    public List<AsyncCallback> m_CallbackList = new List<AsyncCallback>();
     public uint m_Crc = 0;
     public bool m_Sprite = false;
     public string m_Path = string.Empty;
@@ -307,23 +307,29 @@ public class AsyncLoadResParam
 /// <summary>
 /// 异步回调函数类
 /// </summary>
-public class AsyncCallack
+public class AsyncCallback
 {
-    public OnAsyncObjFinish m_DealFinish = null;
-    public object param1 = null;
-    public object param2 = null;
-    public object param3 = null;
-    public object param4 = null;
-    public object param5 = null;
+    // 加载完成的回调
+    public OnAsyncObjFinish m_DealObjFinish = null;
+    public ResourceObj m_resourceObj = null;
+    // 加载完成的回调
+    public OnAsyncFinish m_DealFinish = null;
+    public object m_param1 = null;
+    public object m_param2 = null;
+    public object m_param3 = null;
+    public object m_param4 = null;
+    public object m_param5 = null;
 
     public void ReSet()
     {
         m_DealFinish = null;
-        param1 = null;
-        param2 = null;
-        param3 = null;
-        param4 = null;
-        param5 = null;
+        m_DealObjFinish = null;
+        m_resourceObj = null;
+        m_param1 = null;
+        m_param2 = null;
+        m_param3 = null;
+        m_param4 = null;
+        m_param5 = null;
     }
 }
 
@@ -331,6 +337,10 @@ public class AsyncCallack
 /// 异步加载回调
 /// </summary>
 public delegate void OnAsyncObjFinish(string path, Object obj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null);
+/// <summary>
+/// 实例化加载回调
+/// </summary>
+public delegate void OnAsyncFinish(string path, ResourceObj resourceObj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null);
 
 /// <summary>
 /// 游戏对象加载单位
@@ -349,6 +359,16 @@ public class ResourceObj
     public long m_Guid = 0;
     // 是否已经放回对象池
     public bool m_Already = false;
+    // 是否设置父对象
+    public bool m_SetSceneParent = false;
+    // 实例化完成之后的回调
+    public OnAsyncObjFinish m_DealFinish = null;
+    // 异步参数
+    public object m_param1 = null;
+    public object m_param2 = null; 
+    public object m_param3 = null; 
+    public object m_param4 = null;
+    public object m_param5 = null;
 
     // 重置
     public void ReSet()
@@ -359,7 +379,14 @@ public class ResourceObj
         m_bClear = true;
         m_Guid = 0;
         m_Already = false;
-    }
+        m_SetSceneParent = false;
+        m_DealFinish = null;
+        m_param1 = null;
+        m_param2 = null;
+        m_param3 = null;
+        m_param4 = null;
+        m_param5 = null;
+}
 }
 
 /// <summary>
@@ -367,7 +394,8 @@ public class ResourceObj
 /// </summary>
 public class ResourceManager : Singleton<ResourceManager>
 {
-    public bool m_LoadFromAssetBundle = true;
+    protected long m_Guid = 0;
+    public bool m_LoadFromAssetBundle = false;
     // 缓存使用的资源列表
     // 下面.net 4.0之后属性新写法 虽然说时候我也不知道为什么这样写 但写成属性试验没问题
     public Dictionary<uint, ResourceItem> AssetDic { get; set; } = new Dictionary<uint, ResourceItem>();
@@ -380,7 +408,7 @@ public class ResourceManager : Singleton<ResourceManager>
     // 正在异步加载的dictionary
     protected Dictionary<uint, AsyncLoadResParam> m_LoadingAssetDic = new Dictionary<uint, AsyncLoadResParam>();
     // 异步回调函数对象池
-    protected ClassObjectPool<AsyncCallack> m_AsyncCallackPool = new ClassObjectPool<AsyncCallack>(200);
+    protected ClassObjectPool<AsyncCallback> m_AsyncCallackPool = new ClassObjectPool<AsyncCallback>(200);
     // 异步回调参数的对象池
     protected ClassObjectPool<AsyncLoadResParam> m_AsyncLoadResParamPool = new ClassObjectPool<AsyncLoadResParam>(100);
     // 连续卡着加载的最长时间 单位微秒
@@ -394,6 +422,12 @@ public class ResourceManager : Singleton<ResourceManager>
         }
         m_MonoStart = mono;
         m_MonoStart.StartCoroutine(AsyncLoadCor());
+    }
+
+    // 创建唯一的GUID 
+    public long CreateGuid()
+    {
+        return m_Guid++;
     }
 
     // 同步资源加载方法 从AB包中加载
@@ -699,9 +733,9 @@ public class ResourceManager : Singleton<ResourceManager>
     }
 
     // 异步加载
-    IEnumerator AsyncLoadCor()
+    private IEnumerator AsyncLoadCor()
     {
-        List<AsyncCallack> callbackList = new List<AsyncCallack>();
+        List<AsyncCallback> callbackList = new List<AsyncCallback>();
         // 上一次yield的时间
         long lastYieldTime = System.DateTime.Now.Ticks;
         while (true)
@@ -753,13 +787,22 @@ public class ResourceManager : Singleton<ResourceManager>
                 CacheResourceItem(loadingItem.m_Path, ref item, loadingItem.m_Crc, obj, callbackList.Count);
                 for (int j = 0; j < callbackList.Count; j++)
                 {
-                    AsyncCallack callack = callbackList[j];
-                    if (callack != null && callack.m_DealFinish != null)
+                    AsyncCallback callback = callbackList[j];
+                    if (callback != null && callback.m_DealFinish != null && callback.m_resourceObj != null)
                     {
-                        callack.m_DealFinish?.Invoke(loadingItem.m_Path, obj, callack.param1, callack.param2, callack.param3, callack.param4, callack.param5);
+                        ResourceObj tempResObj = callback.m_resourceObj;
+                        tempResObj.m_resItem = item;
+                        callback.m_DealFinish?.Invoke(loadingItem.m_Path, tempResObj, tempResObj.m_param1, tempResObj.m_param2, tempResObj.m_param3, tempResObj.m_param4, tempResObj.m_param5);
+                        callback.m_DealFinish = null;
+                        tempResObj = null;
                     }
-                    callack.ReSet();
-                    m_AsyncCallackPool.Recycle(callack);
+                    if (callback != null && callback.m_DealObjFinish != null)
+                    {
+                        callback.m_DealObjFinish?.Invoke(loadingItem.m_Path, obj, callback.m_param1, callback.m_param2, callback.m_param3, callback.m_param4, callback.m_param5);
+                        callback.m_DealObjFinish = null;
+                    }
+                    callback.ReSet();
+                    m_AsyncCallackPool.Recycle(callback);
                 }
                 obj = null;
                 callbackList.Clear();
@@ -782,6 +825,37 @@ public class ResourceManager : Singleton<ResourceManager>
     }
 
     // 异步加载资源
+    // 加载实例化的资源
+    public void AsyncLoadResource(string path, ResourceObj resourceObj, OnAsyncFinish dealFinish, LoadResPriority priority = LoadResPriority.RES_MIDDLE)
+    {
+        ResourceItem item = GetCacheResourceItem(resourceObj.m_crc);
+        if (item != null)
+        {
+            resourceObj.m_resItem = item;
+            if (dealFinish != null)
+            {
+                dealFinish.Invoke(path, resourceObj, resourceObj.m_param1, resourceObj.m_param2, resourceObj.m_param3, resourceObj.m_param4, resourceObj.m_param5);
+            }
+        }
+        // 判断是否正在加载
+        AsyncLoadResParam param = null;
+        if (m_LoadingAssetDic.TryGetValue(resourceObj.m_crc, out param) == false || param == null)
+        {
+            param = m_AsyncLoadResParamPool.Spawn(true);
+            param.m_Crc = resourceObj.m_crc;
+            param.m_Path = path;
+            param.m_Priority = priority;
+            m_LoadingAssetDic.Add(resourceObj.m_crc, param);
+            m_LoadingAssetList[(int)priority].Add(param);
+        }
+        // 向回调资源里面添加回调
+        AsyncCallback callback = m_AsyncCallackPool.Spawn(true);
+        callback.m_DealFinish = dealFinish;
+        callback.m_resourceObj = resourceObj;
+        param.m_CallbackList.Add(callback);
+    }
+
+    // 异步加载资源
     // 只加载不需要实例化的资源 如音频文字等
     public void AsyncLoadResource(string path, OnAsyncObjFinish dealFinish, LoadResPriority priority = LoadResPriority.RES_SLOWEST, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null, uint crc = 0)
     {
@@ -794,7 +868,7 @@ public class ResourceManager : Singleton<ResourceManager>
         {
             if (dealFinish != null)
             {
-                dealFinish(path, item.m_Object, param1, param2, param3, param4, param5);
+                dealFinish.Invoke(path, item.m_Object, param1, param2, param3, param4, param5);
             }
             return;
         }
@@ -810,13 +884,13 @@ public class ResourceManager : Singleton<ResourceManager>
             m_LoadingAssetList[(int)priority].Add(param);
         }
         // 向回调资源里面添加回调
-        AsyncCallack callack = m_AsyncCallackPool.Spawn(true);
-        callack.m_DealFinish = dealFinish;
-        callack.param1 = param1;
-        callack.param2 = param2;
-        callack.param3 = param3;
-        callack.param4 = param4;
-        callack.param5 = param5;
+        AsyncCallback callack = m_AsyncCallackPool.Spawn(true);
+        callack.m_DealObjFinish = dealFinish;
+        callack.m_param1 = param1;
+        callack.m_param2 = param2;
+        callack.m_param3 = param3;
+        callack.m_param4 = param4;
+        callack.m_param5 = param5;
         param.m_CallbackList.Add(callack);
     }
 

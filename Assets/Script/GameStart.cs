@@ -17,15 +17,14 @@ public class GameStart : MonoBehaviour
         //ResourceManager.Instance.AsyncLoadResource("Assets/GameData/Sounds/menusound.mp3", OnFinish, LoadResPriority.RES_MIDDLE);
         //ResourceManager.Instance.PreloadResource("Assets/GameData/Sounds/menusound.mp3");
         //ObjectManager.Instance.InstantiateObject("Assets/GameData/Prefabs/Attack.prefab", true);
-        temp = ObjectManager.Instance.InstantiateObject("Assets/GameData/Prefabs/Attack.prefab", true);
+        //ObjectManager.Instance.InstantiateObjectAsync("Assets/GameData/Prefabs/Attack.prefab", OnFinish, LoadResPriority.RES_HIGHEST, true);
+        ObjectManager.Instance.PreLoadGameObject("Assets/GameData/Prefabs/Attack.prefab", 100);
     }
 
-    //public void OnFinish(string path, Object obj, object param1 = null, object param2 = null, object param3 = null, object param4 = null, object param5 = null)
-    //{
-    //    clip = obj as AudioClip;
-    //    m_Audio.clip = clip;
-    //    m_Audio.Play();
-    //}
+    public void OnFinish(string path, Object obj, object m_param1 = null, object m_param2 = null, object m_param3 = null, object m_param4 = null, object m_param5 = null)
+    {
+        temp = obj as GameObject;
+    }
 
 
     private void Update()
@@ -44,7 +43,7 @@ public class GameStart : MonoBehaviour
         }
         else if (Input.GetKeyDown(KeyCode.D))
         {
-            temp = ObjectManager.Instance.InstantiateObject("Assets/GameData/Prefabs/Attack.prefab", true);
+            ObjectManager.Instance.InstantiateObjectAsync("Assets/GameData/Prefabs/Attack.prefab", OnFinish, LoadResPriority.RES_HIGHEST, true);
         }
         else if (Input.GetKeyDown(KeyCode.S))
         {
