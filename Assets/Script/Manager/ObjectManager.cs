@@ -19,6 +19,8 @@ public class ObjectManager : Singleton<ObjectManager>
     protected Dictionary<uint, List<ResourceObj>> m_ObjectPoolDic = new Dictionary<uint, List<ResourceObj>>();
     // ResourceObj对象池
     protected ClassObjectPool<ResourceObj> m_ResourceObjClassPool;
+    // 根据异步的GUID储存的resource object 用来判断是否在异步加载
+    protected Dictionary<long, ResourceObj> m_AsyncResObj = new Dictionary<long, ResourceObj>();
 
     public ObjectManager() 
     {
@@ -121,7 +123,7 @@ public class ObjectManager : Singleton<ObjectManager>
             {
                 dealFinish.Invoke(path, resourceObj.m_cloneObj, param1, param2, param3, param4, param5);
             }
-            return 0;
+            return resourceObj.m_Guid;
         }
         long guid = ResourceManager.Instance.CreateGuid();
         resourceObj = m_ResourceObjClassPool.Spawn(true);
@@ -134,6 +136,7 @@ public class ObjectManager : Singleton<ObjectManager>
         resourceObj.m_param3 = param3;
         resourceObj.m_param4 = param4;
         resourceObj.m_param5 = param5;
+        m_AsyncResObj.Add(guid, resourceObj);
         ResourceManager.Instance.AsyncLoadResource(path, resourceObj, OnLoadResourceObjectFinish, priority);
         return guid;
     }
@@ -154,6 +157,10 @@ public class ObjectManager : Singleton<ObjectManager>
         else
         {
             resourceObj.m_cloneObj = GameObject.Instantiate(resourceObj.m_resItem.m_Object) as GameObject;
+        }
+        if (m_AsyncResObj.ContainsKey(resourceObj.m_Guid))
+        {
+            m_AsyncResObj.Remove(resourceObj.m_Guid);
         }
         if (resourceObj.m_cloneObj != null && resourceObj.m_SetSceneParent == true)
         {
@@ -264,6 +271,20 @@ public class ObjectManager : Singleton<ObjectManager>
         return null;
     }
 
+    // 取消异步加载
+    public bool CancleLoad(long guid)
+    {
+        ResourceObj resourceObj = null;
+        if (m_AsyncResObj.TryGetValue(guid, out resourceObj) == true && ResourceManager.Instance.CancleLoad(resourceObj) == true)
+        {
+            m_AsyncResObj.Remove(guid);
+            resourceObj.ReSet();
+            m_ResourceObjClassPool.Recycle(resourceObj);
+            return true;
+        }
+        return false;
+    }
+
     // 预加载GameObject
     public void PreLoadGameObject(string path, int count = 1, bool clear = false)
     {
@@ -280,5 +301,83 @@ public class ObjectManager : Singleton<ObjectManager>
             gameObject = null;
         }
         tempGameObject.Clear();
+    }
+
+    // 是否正在AsyncLoad
+    public bool IsingAsyncLoad(long guid)
+    {
+        return m_AsyncResObj[guid] != null;
+    }
+
+    // 是否是object manager创建的对象
+    public bool IsObjectManagerCreate(GameObject obj) 
+    {
+        ResourceObj resourceObj = m_ResourceObjDic[obj.GetInstanceID()];
+        if (resourceObj == null)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    // 清空对象池
+    public void ClearCache()
+    {
+        List<uint> cacheList = new List<uint>();
+        foreach (uint key in m_ObjectPoolDic.Keys)
+        {
+            List<ResourceObj> tempList = m_ObjectPoolDic[key];
+            for (int i = tempList.Count - 1;i >= 0;i--)
+            {
+                ResourceObj tempObj = tempList[i];
+                if (System.Object.ReferenceEquals(tempObj.m_cloneObj, null) == false && tempObj.m_bClear == true)
+                {
+                    GameObject.Destroy(tempObj.m_cloneObj);
+                    m_ResourceObjDic.Remove(tempObj.m_cloneObj.GetInstanceID());
+                    tempObj.ReSet();
+                    m_ResourceObjClassPool.Recycle(tempObj);
+                }
+            }
+            if (tempList.Count <= 0)
+            {
+                cacheList.Add(key);
+            }
+        }
+        for (int i = 0; i < cacheList.Count; i++)
+        {
+            uint temp = cacheList[i];
+            if (m_ObjectPoolDic.ContainsKey(temp) == true)
+            {
+                m_ObjectPoolDic.Remove(temp);
+            }
+        }
+        cacheList.Clear();
+    }
+
+    // 清除某个对象在对象池里面所有的对象
+    public void ClearPoolObject(uint crc)
+    {
+        List<ResourceObj> tempList = null;
+        if (m_ObjectPoolDic.TryGetValue(crc, out tempList) == false || tempList == null)
+        {
+            return;
+        }
+        for (int i = tempList.Count - 1; i >= 0; i--)
+        {
+            ResourceObj temp = tempList[i];
+            if (temp.m_bClear == true)
+            {
+                tempList.Remove(temp);
+                int tempId = temp.m_cloneObj.GetInstanceID();
+                GameObject.Destroy(temp.m_cloneObj);
+                temp.ReSet();
+                m_ResourceObjDic.Remove(tempId);
+                m_ResourceObjClassPool.Recycle(temp);
+            }
+        }
+        if (tempList.Count <= 0)
+        {
+            m_ObjectPoolDic.Remove(crc);
+        }
     }
 }
